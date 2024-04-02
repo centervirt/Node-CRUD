@@ -4,6 +4,44 @@ const Book = require('../models/book.models')
 
 
 
+///MIDDLEWARE///
+
+const getBook = async (req, res, next) => {
+    let book;
+    const { id } = req.params;
+
+    if(!id.match(/^[0-9a-fA-F]{24}$/)) {
+        return res.status(404).json(
+            {
+                massage: 'El ID del libro no es valido'
+            }
+        )
+    }
+
+    try {
+        book = await Book.findById(id);
+        if(!book){
+            return res.status(404).json(
+                {
+                    message: 'El libro no fue encontrado'
+                }
+            )
+        }
+    } catch (error){
+        return res.status(500).json(
+            {
+                message: error.message
+            }
+        )
+
+    }
+
+    res.book = book;
+    next()
+
+}
+
+
 /// Obtener todos los libros ///
 router.get ('/', async (req, res) => {
     try{
@@ -12,7 +50,7 @@ router.get ('/', async (req, res) => {
         if (books.length == 0){
             return res.status(204).json([])
         }
-        res(books)
+        res.json(books)
     
     } catch (error){
         res.status(500).json({message: error.message})
@@ -24,9 +62,9 @@ router.get ('/', async (req, res) => {
 
 /// Crear un nuevo libro ( recurso) ///
 
-router.post ('/', async (req, res) =>{
-    const { title,author, genre,publicaction_date } = re?.body
-    if(!title ||!author || !genre|| !publicaction_date){
+router.post ('/', async (req, res) => {
+    const { title, author, genre, publication_date } = req?.body
+    if(!title ||!author || !genre|| !publication_date){
         return res.status(400).json({
             message:'Los campoes titulo, autos,genero y fecha son obligarios'
         })
@@ -38,13 +76,14 @@ router.post ('/', async (req, res) =>{
             title,
             author, 
             genre,
-            publicaction_date 
+            publication_date 
         }
     )
 
 
     try {
         const newBook = await book.save()
+        console.log(newBook)
         res.status(201).json(newBook)
     } catch (error) {
         res.status(400).json({
@@ -54,3 +93,73 @@ router.post ('/', async (req, res) =>{
     }
 })
 
+
+router.get('/:id', getBook, async(req, res) => {
+    res.json(res.book);
+
+})
+
+router.put('/:id', getBook, async(req, res) => {
+    try {
+        const book = res.book
+        book.title = req.body.title || book.title;
+        book.author = req.body.author || book.author;
+        book.genre = req.body.genre || book.genre;
+        book.publication_date = req.body.publication_date || book.publication_date;
+
+        const updateBook = await book.save()
+        res.json(updateBook)
+     } catch (error) {
+        res.status(400).json({
+            message: error.message
+        })
+     }
+
+})
+
+router.patch('/:id', getBook, async(req, res) => {
+
+    if(!req.body.title && !req.author && !req.body.genre && !req.body.publication_date){
+        res.status(404).json({
+            message: 'Al menos uno de estos campos debe ser enviado: Titulo, Autor, Genero o fecha de publicacion'
+
+        })
+    }
+    try {
+        const book = res.book
+        book.title = req.body.title || book.title;
+        book.author = req.body.author || book.author;
+        book.genre = req.body.genre || book.genre;
+        book.publication_date = req.body.publication_date || book.publication_date;
+
+        const updateBook = await book.save()
+        res.json(updateBook)
+     } catch (error) {
+        res.status(400).json({
+            message: error.message
+        })
+     }
+
+})
+
+
+router.delete('/:id', getBook, async(req, res) => {
+    try {
+        const book = res.book
+        await book.deleteOne({
+            _id: book._id
+        });
+        res.json({
+            message: `El Libro ${book.title} fue eliminado correctamente`
+        })
+    } catch (error) {
+        res.status(500).json({
+            message: error.message
+        })
+    }
+    
+
+})
+
+
+module.exports = router
